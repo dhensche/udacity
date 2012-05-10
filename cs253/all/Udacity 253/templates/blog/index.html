@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Blog 1.0</title>
+</head>
+<body>
+<h1><a href="/blog">Blog 1.0</a></h1>
+{% for entry in entries %}
+<div class="post">
+    <h1 class="post-subject">{{entry.subject}}</h1>
+    <div class="post-content">{{entry.content}}</div>
+</div>
+{% endfor %}
+</body>
+</html>
