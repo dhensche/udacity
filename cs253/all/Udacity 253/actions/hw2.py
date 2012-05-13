@@ -3,7 +3,7 @@ __author__ = 'dhensche'
 import cgi
 import re
 import string
-from util import Handler
+from util.handler import Handler
 
 form_hw2_p1="""
 <form method="POST">

@@ -15,10 +15,9 @@
 # limitations under the License.
 #
 import webapp2
+from actions import hw2, hw3, hw4, home
 
-from util import Handler
-import hw3
-import hw2
+from util.handler import Handler
 
 class MainHandler(Handler):
     def get(self):
@@ -29,6 +28,10 @@ app = webapp2.WSGIApplication([('/', MainHandler),
                                ('/2/1', hw2.HW2P1),
                                ('/2/2', hw2.HW2P2),
                                ('/2/2-redirect', hw2.HW2P2Redirect),
-                                ('/blog', hw3.BlogHome),
-                                ('/blog/(.*)', hw3.Blog)],
+                               ('/blog', hw3.BlogHome),
+                               ('/blog/(.*)', hw3.Blog),
+                               ('/home', home.Home),
+                               ('/login', hw4.Login),
+                               ('/logout', hw4.Logout),
+                               ('/signup', hw4.SignUp)],
                               debug=True)

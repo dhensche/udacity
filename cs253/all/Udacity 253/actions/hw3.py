@@ -1,16 +1,11 @@
 __author__ = 'dhensche'
 
-from util import Handler
-from google.appengine.ext import db
-
-class Post(db.Model):
-    subject = db.StringProperty(required=True)
-    content = db.TextProperty(required=True)
-    created = db.DateTimeProperty(auto_now_add=True)
+from util.handler import Handler
+from model.post import Post
 
 class BlogHome(Handler):
     def get(self):
-        self.render('blog/index.html', entries=db.GqlQuery('select * from Post order by created desc'))
+        self.render('blog/index.html', entries=Post.select_all())
 
 class Blog(Handler):
     def render_form(self, content='', subject='', error=''):
