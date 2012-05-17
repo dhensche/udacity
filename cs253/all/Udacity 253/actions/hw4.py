@@ -24,7 +24,7 @@ class SignUp(Handler):
             user = User(name=self.username, password_hash=Hash.password(self.username, self.password), email=(self.email if self.email else None ))
             user.put()
             self.set_cookie('userid', user.key())
-            self.redirect('/home')
+            self.redirect('/blog/home')
 
     def validate(self, request):
         self.username, self.password = request.get('username'), request.get('password')
@@ -49,7 +49,7 @@ class Login(Handler):
         user = User.find_by_username_and_password(self.username, self.request.get('password'))
         if user is not None:
             self.set_cookie('userid', user.key())
-            self.redirect('/home')
+            self.redirect('/blog/home')
         else:
             self.error = 'Invalid username or password'
             self.render_form()
@@ -57,4 +57,4 @@ class Login(Handler):
 class Logout(Handler):
     def get(self):
         self.set_plaintext_cookie('userid', '')
-        self.redirect('/signup')
+        self.redirect('/blog/signup')

@@ -1,8 +1,9 @@
 __author__ = 'dhensche'
 
 from google.appengine.ext import db
+from base_model import JsonModel
 
-class Post(db.Model):
+class Post(JsonModel):
     subject = db.StringProperty(required=True)
     content = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)

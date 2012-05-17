@@ -21,6 +21,10 @@ class Handler(webapp2.RequestHandler):
     def render(self, template, **kw):
         self.write(self.render_str(template, **kw))
 
+    def render_json(self, json):
+        self.response.headers['Content-Type'] = 'application/json'
+        self.write(json)
+
     def set_cookie(self, name, value, expires=None):
         if expires is None:
             self.response.headers.add_header('Set-Cookie', '%s=%s; Path=/' % (name, Hash.hash_cookie(str(value))))
