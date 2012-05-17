@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# ply: yacc.py
+# homework4.ply: yacc.py
 #
 # Copyright (C) 2001-2011,
 # David M. Beazley (Dabeaz LLC)
@@ -103,7 +103,6 @@ except AttributeError:
 # Python 2.x/3.0 compatibility.
 def load_ply_lex():
     if sys.version_info[0] < 3:
-        import lex
     else:
         import ply.lex as lex
     return lex
@@ -1119,8 +1118,6 @@ class LRParser:
 # The following functions, classes, and variables are used to represent and
 # manipulate the rules that make up a grammar. 
 # -----------------------------------------------------------------------------
-
-import re
 
 # regex matching identifiers
 _is_identifier = re.compile(r'^[a-zA-Z0-9_-]+$')
@@ -3092,7 +3089,7 @@ def yacc(method='LALR', debug=yaccdebug, module=None, tabmodule=tab_module, star
         else:
             debuglog = NullLogger()
 
-    debuglog.info("Created by PLY version %s (http://www.dabeaz.com/ply)", __version__)
+    debuglog.info("Created by PLY version %s (http://www.dabeaz.com/homework4.ply)", __version__)
 
 
     errors = 0

@@ -39,7 +39,7 @@
 #
 # Hint: float("2.3") = 2.3
 
-import lex
+from ply import lex
 
 tokens = (
         'IDENTIFIER',   
