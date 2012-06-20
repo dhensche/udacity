@@ -24,22 +24,31 @@ def anagrams(phrase, shortest=2):
     lexicographic order (not all permutations)."""
     letters = phrase.replace(' ', '')
     anagram = anagram_solver(letters, shortest)
-    print(anagram)
     return anagram
     # your code here
 
+
+anagram_cache = dict()
 def anagram_solver(all_letters, min_length=2):
     results = set()
     def helper(letters, t_results):
+        if len(t_results) > 0:
+            key = tuple(sorted(letters))
+            if key in anagram_cache:
+                for permutation in anagram_cache[key]:
+                    results.add(' '.join(sorted(t_results | set(permutation.split(' ')))))
+                return
+            else:
+                anagram_cache[key] = anagram_solver(letters, min_length)
         for word in find_words(letters, min_length):
             new_letters = removed(letters, word)
 
             if len(letters) == (len(new_letters) + len(word)):
                 if len(new_letters) is 0:
                     results.add(' '.join(sorted(t_results | set([word]))))
+                    return
                 else:
                     helper(new_letters, t_results | set([word]))
-
 
     helper(all_letters, set())
     return results
@@ -101,4 +110,3 @@ def test():
     return 'tests pass'
 
 print test()
-
