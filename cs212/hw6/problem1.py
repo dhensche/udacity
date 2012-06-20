@@ -22,9 +22,27 @@ def anagrams(phrase, shortest=2):
     of phrase. Spaces can be anywhere in phrase or anagram. All words
     have length >= shortest. Phrases in answer must have words in
     lexicographic order (not all permutations)."""
-    letters = filter(lambda l: l != ' ', phrase)
-    print find_words(letters)
+    letters = phrase.replace(' ', '')
+    anagram = anagram_solver(letters, shortest)
+    print(anagram)
+    return anagram
     # your code here
+
+def anagram_solver(all_letters, min_length=2):
+    results = set()
+    def helper(letters, t_results):
+        for word in find_words(letters, min_length):
+            new_letters = removed(letters, word)
+
+            if len(letters) == (len(new_letters) + len(word)):
+                if len(new_letters) is 0:
+                    results.add(' '.join(sorted(t_results | set([word]))))
+                else:
+                    helper(new_letters, t_results | set([word]))
+
+
+    helper(all_letters, set())
+    return results
 
 # ------------
 # Helpful functions
@@ -38,8 +56,13 @@ def removed(letters, remove):
         letters = letters.replace(L, '', 1)
     return letters
 
+word_cache = dict()
+
 def find_words(letters, min_length=1):
-    return extend_prefix('', letters, set(), min_length)
+    key = tuple(sorted(letters))
+    if key in word_cache: return word_cache[key]
+    word_cache[key] = extend_prefix('', letters, set(), min_length)
+    return word_cache[key]
 
 def extend_prefix(pre, letters, results, min_length=1):
     if pre in WORDS and len(pre) >= min_length: results.add(pre)
@@ -58,7 +81,7 @@ def readwordlist(filename):
     prefixset = set(p for word in wordset for p in prefixes(word))
     return wordset, prefixset
 
-WORDS, PREFIXES = readwordlist('hw6\words.txt')
+WORDS, PREFIXES = readwordlist('words.txt')
 
 # ------------
 # Testing
