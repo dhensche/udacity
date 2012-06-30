@@ -90,18 +90,37 @@ class poly:
         return poly.zip_longest(self.coefs, other.coefs, 0)
 
     def __add__(self, other):
-        return poly([sum(x) for x in self.zip(other)])
+        if isinstance(other, poly):
+            return poly([sum(x) for x in self.zip(other)])
+        else:
+            return poly([x + (other if i is 0 else 0) for (i, x) in enumerate(self.coefs)])
+
+    def __radd__(self, other):
+        return self + other
 
     def __sub__(self, other):
-        return poly([reduce(lambda a,b: a - b, x) for x in self.zip(other)])
+        if isinstance(other, poly):
+            return poly([reduce(lambda a,b: a - b, x) for x in self.zip(other)])
+        else:
+            return poly([x - (other if i is 0 else 0) for (i, x) in enumerate(self.coefs)])
+
+    def __rsub__(self, other):
+        return (self * -1) + other
 
     def __mul__(self, other):
-        coefficients = dict()
-        for (i,c1) in enumerate(self.coefs):
-            for (j,c2) in enumerate(other.coefs):
-                power = i + j
-                coefficients[power] = c1 * c2 + (coefficients[power] if power in coefficients else 0)
-        return poly(coefficients.values())
+        if isinstance(other, poly):
+            coefficients = dict()
+            for (i,c1) in enumerate(self.coefs):
+                for (j,c2) in enumerate(other.coefs):
+                    power = i + j
+                    coefficients[power] = c1 * c2 + (coefficients[power] if power in coefficients else 0)
+            return poly(coefficients.values())
+        else:
+            return poly([coefficient * other for coefficient in self.coefs])
+
+    def __rmul__(self, other):
+        return self * other
+
 
     def __pow__(self, power, modulo=None):
         result = poly((1,))
@@ -114,7 +133,11 @@ class poly:
         return poly(coefficients)
 
     def __integrate__(self, C=0):
-        return
+        coefficients = [coefficient / (i + 1) for (i, coefficient) in enumerate(self.coefs)]
+        return poly([C] + coefficients)
+
+    def __eq__(self, other):
+        return self.__name__ == other.__name__
 
 
     """Return a function that represents the polynomial with these coefficients.
@@ -214,6 +237,7 @@ def deriv(p):
 
 
 def integral(p, C=0):
+    return p.__integrate__(C)
     "Return the integral of a function p (with respect to its argument)."
 
 
@@ -245,6 +269,6 @@ def test_poly2():
     newp1 = Poly('30 * x**2 + 20 * x + 10')
     assert p1(100) == newp1(100)
     assert same_name(p1.__name__,newp1.__name__)
-
-poly((2,3,-5, 5))
 print test_poly()
+print test_poly1()
+
