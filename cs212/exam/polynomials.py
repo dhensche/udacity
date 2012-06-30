@@ -53,32 +53,70 @@ Your task is to write the function poly and the following additional functions:
 They are described below; see the test_poly function for examples.
 """
 
-def build_part(coef, power):
-    if coef is 1:
-        if power is 0:
-            return '1'
-        elif power is 1:
-            return 'x'
-        else:
-            return 'x**{0}'.format(power)
-    else:
-        if power is 0:
-            return '{0}'.format(coef)
-        elif power is 1:
-            return '{0} * x'.format(coef)
-        else:
-            return '{0} * x**{1}'.format(coef, power)
+class poly:
+    @staticmethod
+    def zip_longest(i1, i2, default=None):
+        return map(lambda x,y: (x if x is not None else default,y if y is not None else default), i1, i2)
 
-def poly(coefs):
+    @staticmethod
+    def build_name(coefficient, power):
+        if coefficient is 1:
+            if power is 0:
+                return '1'
+            elif power is 1:
+                return 'x'
+            else:
+                return 'x**{0}'.format(power)
+        else:
+            if power is 0:
+                return '{0}'.format(coefficient)
+            elif power is 1:
+                return '{0} * x'.format(coefficient)
 
-    def calculate(x_val):
-        return sum([(x_val**i * coef) for (i, coef) in enumerate(coefs)])
-    calculate.coefs = tuple(coefs)
-    calculate.__repr__ = 'polynomial'
-    calculate.__name__ = ' + '.join(build_part(coef, len(coefs) - i - 1) for (i, coef) in enumerate(reversed(coefs)) if coef != 0)
-    print calculate.__name__
-    print calculate.coefs
-    return calculate
+            else:
+                return '{0} * x**{1}'.format(coefficient, power)
+
+    def __init__(self, coefficients):
+        def calculate(x_val):
+            return sum([(x_val**i * coefficient) for (i, coefficient) in enumerate(coefficients)])
+        self.coefs = tuple(coefficients)
+        self.__repr__ = 'polynomial'
+        self.__name__ = ' + '.join(poly.build_name(coef, len(coefficients) - i - 1) for (i, coef) in enumerate(reversed(coefficients)) if coef != 0).replace('+ -', '- ')
+        self.__call__ = calculate
+        print self.__name__
+        print self.coefs
+
+    def zip(self, other):
+        return poly.zip_longest(self.coefs, other.coefs, 0)
+
+    def __add__(self, other):
+        return poly([sum(x) for x in self.zip(other)])
+
+    def __sub__(self, other):
+        return poly([reduce(lambda a,b: a - b, x) for x in self.zip(other)])
+
+    def __mul__(self, other):
+        coefficients = dict()
+        for (i,c1) in enumerate(self.coefs):
+            for (j,c2) in enumerate(other.coefs):
+                power = i + j
+                coefficients[power] = c1 * c2 + (coefficients[power] if power in coefficients else 0)
+        return poly(coefficients.values())
+
+    def __pow__(self, power, modulo=None):
+        result = poly((1,))
+        for x in range(power):
+            result = result * self
+        return result
+
+    def __derive__(self):
+        coefficients = [i * coefficient for (i, coefficient) in enumerate(self.coefs) if i > 0]
+        return poly(coefficients)
+
+    def __integrate__(self, C=0):
+        return
+
+
     """Return a function that represents the polynomial with these coefficients.
     For example, if coefs=(10, 20, 30), return the function of x that computes
     '30 * x**2 + 20 * x + 10'.  Also store the coefs on the .coefs attribute of
@@ -139,30 +177,22 @@ def is_poly(x):
     ## For examples, see the test_poly function
 
 def add(p1, p2):
-    return poly([sum(x) for x in map(lambda x,y: (x if x is not None else 0,y if y is not None else 0), p1.coefs, p2.coefs)])
+    return p1 + p2
     "Return a new polynomial which is the sum of polynomials p1 and p2."
 
 
 def sub(p1, p2):
-    return poly([reduce(lambda a,b: a - b, x) for x in map(lambda x,y: (x if x is not None else 0,y if y is not None else 0), p1.coefs, p2.coefs)])
+    return p1 - p2
     "Return a new polynomial which is the difference of polynomials p1 and p2."
 
 
 def mul(p1, p2):
-    coefs = dict()
-    for (i,c1) in enumerate(p1.coefs):
-        for (j,c2) in enumerate(p2.coefs):
-            power = i + j
-            coefs[power] = c1 * c2 + (coefs[power] if power in coefs else 0)
-    return poly(coefs.values())
+    return p1 * p2
     "Return a new polynomial which is the product of polynomials p1 and p2."
 
 
 def power(p, n):
-    result = p
-    for x in range(n - 1):
-        result = mul(result, p)
-    return result
+    return p ** n
     "Return a new polynomial which is p to the nth power (n a non-negative integer)."
 
 
@@ -179,6 +209,7 @@ to the function integral (withh default C=0).
 """
 
 def deriv(p):
+    return p.__derive__()
     "Return the derivative of a function p (with respect to its argument)."
 
 
@@ -215,4 +246,5 @@ def test_poly2():
     assert p1(100) == newp1(100)
     assert same_name(p1.__name__,newp1.__name__)
 
+poly((2,3,-5, 5))
 print test_poly()
