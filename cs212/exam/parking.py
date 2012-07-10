@@ -111,6 +111,9 @@ def solve_parking_puzzle(start, N=N):
     of (object, locations) pairs).  Return a path of [state, action, ...]
     alternating items; an action is a pair (object, distance_moved),
     such as ('B', 16) to move 'B' two squares down on the N=8 grid."""
+    def is_goal(state):
+        n = N + 1 if N % 2 is not 0 else N
+        return ((n / 2) * N) - 1 in (space for (obj, spaces) in state if obj == '*' for space in spaces)
 
 # But it would also be nice to have a simpler format to describe puzzles,
 # and a way to visualize states.
@@ -201,4 +204,4 @@ def path_actions(path):
     "Return a list of actions in this path."
     return path[1::2]
 
-show(puzzle3)
+print 26 in (space for (obj, spaces) in puzzle3 if obj == '*' for space in spaces)
