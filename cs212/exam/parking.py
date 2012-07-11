@@ -1,3 +1,5 @@
+import timeit
+
 __author__ = 'dhensche'
 
 """
@@ -112,17 +114,13 @@ def solve_parking_puzzle(start, N=N):
     of (object, locations) pairs).  Return a path of [state, action, ...]
     alternating items; an action is a pair (object, distance_moved),
     such as ('B', 16) to move 'B' two squares down on the N=8 grid."""
+
     def boarded(state):
         board = ['.'] * N**2
         for (c, squares) in state:
             for s in squares:
                 board[s] = c
         return board
-
-    def update(state, car, difference, results):
-        state_dict = dict(state)
-        state_dict[car] = tuple(map(lambda x: x + difference, state_dict[car]))
-        results[tuple(state_dict.items())] = (car, difference)
 
     def is_goal(state):
         n = N + 1 if N % 2 is not 0 else N
@@ -133,26 +131,27 @@ def solve_parking_puzzle(start, N=N):
         board = boarded(state)
         result = {}
 
-        def build_next_states(car, start, difference):
-            temp = start + difference
-            while board[temp] == '.' or (car == '*' and board[temp] == '@'):
-                update(state, car, temp - start, result)
-                temp += difference
-
         for (car, squares) in state:
             if car == '|': continue
-            first = squares[0]
-            last = squares[-1:][0]
-            direction = VERTICAL if (last - first) % N is 0 else HORIZONTAL
 
-            #TODO: The state is not being inserted properly
+            def update(difference):
+                state_dict = dict(state)
+                state_dict[car] = tuple(map(lambda x: x + difference, state_dict[car]))
+                result[tuple(state_dict.items())] = (car, difference)
 
-            if direction is HORIZONTAL:
-                build_next_states(car, first, -1)
-                build_next_states(car, last, 1)
-            else:
-                build_next_states(car, first, -N)
-                build_next_states(car, last, N)
+            def build_next_states(start, difference):
+                temp = start + difference
+                while board[temp] == '.' or (car == '*' and board[temp] == '@'):
+                    update(temp - start)
+                    temp += difference
+
+            def build_all_states():
+                n = N if (squares[-1:][0] - squares[0]) % N is 0 else 1
+
+                build_next_states(squares[0], -n)
+                build_next_states(squares[-1:][0], n)
+
+            build_all_states()
         return result
 
     return shortest_path_search(start, successors, is_goal)
@@ -247,3 +246,6 @@ def path_actions(path):
     return path[1::2]
 
 print path_actions(solve_parking_puzzle(puzzle1))
+
+t = timeit.Timer("path_actions(solve_parking_puzzle(puzzle1))", "from __main__ import path_actions, solve_parking_puzzle, puzzle1")
+print t.repeat(10, 20)
