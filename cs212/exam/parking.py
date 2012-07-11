@@ -41,7 +41,7 @@ For example, here is a successor state where the AA car moves 3 to the left:
 | P . . B . Y |
 | P * * B . Y @
 | P . . B . . |
-| O A A . . . |
+| O . . . A A |
 | O . . . . . |
 | | | | | | | |
 
@@ -105,15 +105,57 @@ puzzle1 = (
 # Your task is to define solve_parking_puzzle:
 
 N = 8
-
+VERTICAL = (0,1)
+HORIZONTAL = (1,0)
 def solve_parking_puzzle(start, N=N):
     """Solve the puzzle described by the starting position (a tuple
     of (object, locations) pairs).  Return a path of [state, action, ...]
     alternating items; an action is a pair (object, distance_moved),
     such as ('B', 16) to move 'B' two squares down on the N=8 grid."""
+    def boarded(state):
+        board = ['.'] * N**2
+        for (c, squares) in state:
+            for s in squares:
+                board[s] = c
+        return board
+
+    def update(state, car, difference, results):
+        state_dict = dict(state)
+        state_dict[car] = tuple(map(lambda x: x + difference, state_dict[car]))
+        results[tuple(state_dict.items())] = (car, difference)
+
     def is_goal(state):
         n = N + 1 if N % 2 is not 0 else N
-        return ((n / 2) * N) - 1 in (space for (obj, spaces) in state if obj == '*' for space in spaces)
+        goal = ((n / 2) * N) - 1
+        return goal in (space for (obj, spaces) in state if obj == '*' for space in spaces)
+
+    def successors(state):
+        board = boarded(state)
+        result = {}
+
+        def build_next_states(car, start, difference):
+            temp = start + difference
+            while board[temp] == '.' or (car == '*' and board[temp] == '@'):
+                update(state, car, temp - start, result)
+                temp += difference
+
+        for (car, squares) in state:
+            if car == '|': continue
+            first = squares[0]
+            last = squares[-1:][0]
+            direction = VERTICAL if (last - first) % N is 0 else HORIZONTAL
+
+            #TODO: The state is not being inserted properly
+
+            if direction is HORIZONTAL:
+                build_next_states(car, first, -1)
+                build_next_states(car, last, 1)
+            else:
+                build_next_states(car, first, -N)
+                build_next_states(car, last, N)
+        return result
+
+    return shortest_path_search(start, successors, is_goal)
 
 # But it would also be nice to have a simpler format to describe puzzles,
 # and a way to visualize states.
@@ -204,4 +246,4 @@ def path_actions(path):
     "Return a list of actions in this path."
     return path[1::2]
 
-print 26 in (space for (obj, spaces) in puzzle3 if obj == '*' for space in spaces)
+print path_actions(solve_parking_puzzle(puzzle1))
