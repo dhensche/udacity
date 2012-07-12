@@ -107,8 +107,7 @@ puzzle1 = (
 # Your task is to define solve_parking_puzzle:
 
 N = 8
-VERTICAL = (0,1)
-HORIZONTAL = (1,0)
+
 def solve_parking_puzzle(start, N=N):
     """Solve the puzzle described by the starting position (a tuple
     of (object, locations) pairs).  Return a path of [state, action, ...]
