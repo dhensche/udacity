@@ -167,7 +167,7 @@ def neighbors(target):
     return SECTIONS[target[1:]]
 
 def outcome(target, miss):
-    miss = miss * 0.2 if target[0] == 'S' else 3 * miss if target == 'DB' else miss
+    miss = miss * 0.2 if target[0] == 'S' and target != 'SB' else 3 * miss if target == 'DB' else miss
     hit = 1 - miss
     around_me = neighbors(target)
     h_miss = miss * (1.0/len(around_me))
@@ -176,11 +176,11 @@ def outcome(target, miss):
     for neighbor in around_me:
         side = 'S' if target == 'DB' or target == 'SB' else target[0]
         if target == 'SB' or target == 'DB':
-            distribution[target] = hit
             if target == 'SB':
-                distribution['DB'] = 0.25 * miss
-                distribution[side + neighbor] = 0.75 * h_miss
+                distribution['DB'] = 0.25 * miss * hit
+                distribution[side + neighbor] = (1 - distribution['DB'] - distribution['SB']) / 20
             else:
+                distribution[target] = hit
                 distribution['SB'] = (1.0 / 3) * miss
                 distribution[side + neighbor] = (2.0 / 3) * h_miss
         else:
@@ -230,5 +230,6 @@ def test_darts2():
              'S7': 0.016, 'SB': 0.64}))
 
 
-print(outcome('SB', 0.2))
+print sum(outcome('DB', 0.2).values())
+print test_darts()
 print test_darts2()
