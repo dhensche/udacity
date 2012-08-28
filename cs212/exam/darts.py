@@ -81,19 +81,25 @@ def name(d, needs_double=False):
         else:
             return ''
     else:
-        if d % 2 is 0:
+        if d % 2 is 0 and d <= 40:
             return 'D%d' % (d / 2)
         else:
             return name(d)
 
 def double_out(total):
+    if not total: return None;
     scores = []
     for score1 in POSSIBLE_SCORES:
         for score2 in POSSIBLE_SCORES:
             score3 = (total - score1 - score2)
             if score3 in POSSIBLE_SCORES:
                 scores = filter(lambda x: x != 0, [score1, score2, score3])
-                darts = sorted(map(name, scores), reverse=True)
+                darts, needs_double = [], True
+                for score in scores:
+                    n = name(score, needs_double)
+                    if n[0] == 'D': needs_double = False
+                    darts += [n]
+                darts = sorted(darts, reverse=True)
                 if darts[-1][0] == 'D': return darts
 
     if not len(scores): return None
@@ -229,7 +235,7 @@ def test_darts2():
              'S10': 0.016, 'S17': 0.016, 'S16': 0.016, 'S15': 0.016, 'S14': 0.016,
              'S7': 0.016, 'SB': 0.64}))
 
-
+print double_out(2)
 print sum(outcome('DB', 0.2).values())
 print test_darts()
 print test_darts2()
