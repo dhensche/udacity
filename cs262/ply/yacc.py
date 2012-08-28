@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# homework4.ply: yacc.py
+# hw4.ply: yacc.py
 #
 # Copyright (C) 2001-2011,
 # David M. Beazley (Dabeaz LLC)
@@ -103,6 +103,7 @@ except AttributeError:
 # Python 2.x/3.0 compatibility.
 def load_ply_lex():
     if sys.version_info[0] < 3:
+        None
     else:
         import ply.lex as lex
     return lex
@@ -3089,7 +3090,7 @@ def yacc(method='LALR', debug=yaccdebug, module=None, tabmodule=tab_module, star
         else:
             debuglog = NullLogger()
 
-    debuglog.info("Created by PLY version %s (http://www.dabeaz.com/homework4.ply)", __version__)
+    debuglog.info("Created by PLY version %s (http://www.dabeaz.com/hw4.ply)", __version__)
 
 
     errors = 0

@@ -67,7 +67,7 @@ def t_comment(token):
     r'/\*'
     token.lexer.begin('comment')
 
-def t_comment_eol(token):
+def t_ignore_comment_eol(token):
     r'//[^\n]*'
     pass
 

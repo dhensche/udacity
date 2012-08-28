@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# homework4.ply: lex.py
+# hw4.ply: lex.py
 #
 # Copyright (C) 2001-2011,
 # David M. Beazley (Dabeaz LLC)
