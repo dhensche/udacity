@@ -1,4 +1,5 @@
 __author__ = 'Derek'
+
 # Underscoring the Magnitude
 #
 # Focus: Units 1 and 2, Regular Expressions and Lexical Analysis
