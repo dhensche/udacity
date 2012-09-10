@@ -12,6 +12,11 @@ def make_link(G, node1, node2):
     (G[node2])[node1] = 1
     return G
 
+def make_graph(edges):
+    G = {}
+    for (x,y) in edges: make_link(G, x, y)
+    return G
+
 def clustering_coefficient(G,v=None):
     if not v:
         return sum([clustering_coefficient(G, v_x) for v_x in G.keys()]) / len(G)
