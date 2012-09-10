@@ -30,6 +30,10 @@ def read_graph(filename):
     for (node1, node2) in tsv: make_link(G, node1, node2)
     return G
 
+def centrality(G, v):
+    paths = path(G, v, None)
+    return sum(map(lambda path: len(path), paths.values())) / len(paths)
+
 def path(G, v1, v2):
     path_from_start = {}
     open_list = deque([v1])
@@ -41,4 +45,4 @@ def path(G, v1, v2):
                 path_from_start[neighbor] = path_from_start[current] + [neighbor]
                 if neighbor == v2: return path_from_start[neighbor]
                 open_list.append(neighbor)
-    return False
+    return path_from_start
