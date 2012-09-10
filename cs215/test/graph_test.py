@@ -11,5 +11,7 @@ def test():
     for (x,y) in flights: make_link(G,x,y)
 
     assert clustering_coefficient(G) == 2.0/9.0
+    return True
 
 print test()
+
