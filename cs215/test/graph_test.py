@@ -1,6 +1,6 @@
 __author__ = 'Derek'
 
-from utils.graph import clustering_coefficient, make_link
+import utils.graph as graph
 
 def test():
     flights = [("ORD", "SEA"), ("ORD", "LAX"), ('ORD', 'DFW'), ('ORD', 'PIT'),
@@ -8,9 +8,14 @@ def test():
         ('RDU', 'PHL'), ('PIT', 'PHL'), ('PHL', 'PVD')]
 
     G = {}
-    for (x,y) in flights: make_link(G,x,y)
+    for (x,y) in flights: graph.make_link(G,x,y)
+    marvel_G = graph.read_graph("resources/marvel_graph.tsv")
 
-    assert clustering_coefficient(G) == 2.0/9.0
+
+    assert graph.clustering_coefficient(G) == 2.0/9.0
+    assert len(marvel_G) == 19255
+    assert graph.path(marvel_G, 'A', 'ZZZAX') == ['A', 'W2 159', 'WOLVERINE/LOGAN ', 'W2 41', 'SUMMERS, NATHAN CHRI', 'C2 59', 'ZZZAX']
+
     return True
 
 print test()

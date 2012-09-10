@@ -1,3 +1,6 @@
+from collections import deque
+import csv
+
 __author__ = 'Derek'
 
 def make_link(G, node1, node2):
@@ -19,3 +22,23 @@ def clustering_coefficient(G,v=None):
         for u in neighbors:
             if u in G[w]: links += 0.5
     return 2.0*links/(len(neighbors)*(len(neighbors)-1))
+
+def read_graph(filename):
+    """Reads a graph from the given file if the file is in tsv format"""
+    tsv = csv.reader(open(filename), delimiter='\t')
+    G = {}
+    for (node1, node2) in tsv: make_link(G, node1, node2)
+    return G
+
+def path(G, v1, v2):
+    path_from_start = {}
+    open_list = deque([v1])
+    path_from_start[v1] = [v1]
+    while len(open_list) > 0:
+        current = open_list.popleft()
+        for neighbor in G[current].keys():
+            if neighbor not in path_from_start:
+                path_from_start[neighbor] = path_from_start[current] + [neighbor]
+                if neighbor == v2: return path_from_start[neighbor]
+                open_list.append(neighbor)
+    return False
