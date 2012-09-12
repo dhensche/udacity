@@ -31,9 +31,7 @@ def clustering_coefficient(G,v=None):
 def read_graph(filename):
     """Reads a graph from the given file if the file is in tsv format"""
     tsv = csv.reader(open(filename), delimiter='\t')
-    G = {}
-    for (node1, node2) in tsv: make_link(G, node1, node2)
-    return G
+    return make_graph(tsv)
 
 def centrality(G, v):
     paths = path(G, v, None)
