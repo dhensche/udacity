@@ -1,3 +1,5 @@
+import heapq
+
 __author__ = 'Derek'
 
 class heap:
@@ -13,6 +15,7 @@ class heap:
         return self.L[item]
 
     def __setitem__(self, key, value):
+        if key >= len(self): self.L.append(None)
         self.L[key] = value
 
     def __delitem__(self, key):
@@ -47,9 +50,15 @@ class heap:
     def one_child(self, i):
         return heap.left_child(i) < len(self) <= heap.right_child(i)
 
+    def smallest(self):
+        return self[0]
+
     def remove_min(self):
-        self[0] = self.L.pop()
+        min = self[0]
+        last = self.L.pop()
+        if min != last: self[0] = last
         self.down_heapify(0)
+        return min
 
     def down_heapify(self, i):
         left_i, right_i = self.left_child(i), self.right_child(i)
@@ -78,8 +87,27 @@ class heap:
             self[i], self[parent] = self[parent], self[i]
             self.up_heapify(parent)
 
-#########
-# Testing Code
-#
+class priority_dict(dict):
+    def __init__(self, initial_dict=None, **kwargs):
+        self.__heap = []
+        dict.__init__(self)
+        d = {}
+        d.update(kwargs)
+        if initial_dict: d.update(initial_dict)
+        for (key, value) in d.iteritems(): self.__setitem__(key, value)
 
-# build_heap
+    def __setitem__(self, key, value):
+        '''Change value stored in dictionary and add corresponding
+pair to heap.'''
+        dict.__setitem__(self, key, value)
+
+        pair = (value, key)
+        heapq.heappush(self.__heap, pair)
+
+
+    def __iter__(self):
+        '''Create destructive sorted iterator of priority_dict.'''
+        while len(self):
+            (value, key) = heapq.heappop(self.__heap)
+            yield (key, value)
+            del self[key]
