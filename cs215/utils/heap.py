@@ -4,7 +4,7 @@ class heap:
     def __init__(self, L=list([])):
         self.L = list(L)
         self.heapify()
-        self.__repr__ = 'heap'
+        self.__repr__ = L.__repr__
 
     def __len__(self):
         return len(self.L)
@@ -64,12 +64,10 @@ class heap:
         right_child = self[right_i]
         if min(left_child, right_child) >= self[i]: return
 
-        if left_child < right_child:
-            self[i], self[left_i] = left_child, self[i]
-            self.down_heapify(left_i)
-        else:
-            self[i], self[right_i] = right_child, self[i]
-            self.down_heapify(right_i)
+        swap_i = left_i if left_child < right_child else right_i
+        self[i], self[swap_i] = self[swap_i], self[i]
+        self.down_heapify(swap_i)
+
         return
 
     def up_heapify(self, i):

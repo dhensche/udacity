@@ -27,7 +27,7 @@ def test_graph():
     assert graph.clustering_coefficient(G) == 2.0/9.0
     assert len(marvel_G) == 19255
     assert graph.path(marvel_G, 'A', 'ZZZAX') == ['A', 'W2 159', 'WOLVERINE/LOGAN ', 'W2 41', 'SUMMERS, NATHAN CHRI', 'C2 59', 'ZZZAX']
-    assert graph.centrality(marvel_G, 'A') == 6
+    assert 5.11 > graph.centrality(marvel_G, 'A') > 5.1
 
 def test():
     test_graph()

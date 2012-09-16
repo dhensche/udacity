@@ -3,13 +3,13 @@ import csv
 
 __author__ = 'Derek'
 
-def make_link(G, node1, node2):
+def make_link(G, node1, node2, weight=1):
     if node1 not in G:
         G[node1] = {}
-    (G[node1])[node2] = 1
+    (G[node1])[node2] = weight
     if node2 not in G:
         G[node2] = {}
-    (G[node2])[node1] = 1
+    (G[node2])[node1] = weight
     return G
 
 def make_graph(edges, node_index_one=0, node_index_two=1):
