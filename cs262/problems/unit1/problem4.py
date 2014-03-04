@@ -54,6 +54,7 @@ accepting2 = [2]
 # over all of the keys in the mapping (i.e., over all of the (state,letter)
 # pairs) -- you'll have to write "edges[edge]" to get the destination list.
 
+
 def nfsmaccepts(current, edges, accepting, visited):
     if current in accepting:
             return ""
@@ -69,12 +70,11 @@ def nfsmaccepts(current, edges, accepting, visited):
         return None
 
 
-
 # This problem includes some test cases to help you tell if you are on
 # the right track. You may want to make your own additional tests as well.
 print "Test 1: " + str(nfsmaccepts(1, edges, accepting, []) == "abc")
 print "Test 2: " + str(nfsmaccepts(1, edges, [4], []) == "ab")
-print "Test 3: " + str(nfsmaccepts(1, edges2, accepting2, []) == None)
+print "Test 3: " + str(nfsmaccepts(1, edges2, accepting2, []) is None)
 print "Test 4: " + str(nfsmaccepts(1, edges2, [1], []) == "")
 
 
