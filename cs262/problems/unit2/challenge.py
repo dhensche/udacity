@@ -68,10 +68,11 @@ def nfsmaccepts(current, edges, accepting, visited):
 
 
 def nfsmtrim(edges, accepting):
-    """
-    This trims off the edges that don't lead to an accepting state and any accepting states
-    that are unreachable.
-    
+    """This trims off the edges that don't lead to an accepting state and any accepting states
+    that are unreachable. It does this by going over the existing edges and seeing if an accepting
+    state can be reached from it using nfsmaccepts. If one can be reached the edge is valid and retained,
+    otherwise it is dropped from the valid edges.
+
     @param edges: The original edges of the nfsm you want to trim
     @param accepting: The original accepting states of the nfsm you want to trim
     @return: trimmed edges and accepting states
