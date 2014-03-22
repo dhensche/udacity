@@ -65,7 +65,24 @@ __author__ = 'dhensche'
 
 
 def cfginfinite(grammar):
-    return grammar
+    def helper(current, visited, sizexy):
+        if current in visited:
+            return sizexy > 0
+        else:
+            visited += [current]
+            for rhs in [r[1] for r in grammar if r[0] == current]:
+                for symbol in rhs:
+                    # if the symbol is in visited and there was an extra character in rhs, then infinite because of
+                    # "Important Assumption" above
+                    if helper(symbol, visited, sizexy + len(rhs) - 1):
+                        return True
+            return False
+
+    # for each non-terminal check to see if it will go on forever
+    for Q in [rule[0] for rule in grammar]:
+        if helper(Q, [], 0):
+            return True
+    return False
 
 # Put your code here!
 # We have provided a few test cases. You will likely want to write your own

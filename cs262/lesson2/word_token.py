@@ -7,6 +7,7 @@ __author__ = 'dhensche'
 
 # Submit a definition for t_WORD.
 
+
 def t_WORD(token):
     r'[^<> ]+'
     return token

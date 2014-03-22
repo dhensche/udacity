@@ -12,6 +12,7 @@ __author__ = 'dhensche'
 #     "esc \" ape"
 #     League of Nations Treaty Series 
 
+
 def t_STRING(token):
     r'"[^"]*"'
     return token
