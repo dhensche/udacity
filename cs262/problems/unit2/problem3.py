@@ -26,41 +26,42 @@ def test_lexer(lexer, input_string):
     result = []
     while True:
         tok = lexer.token()
-        if not tok: break
+        if not tok:
+            break
         result = result + [tok.type]
     return result
 
 
 tokens = (
-    'ANDAND', # &&
-    'COMMA', # ,
-    'DIVIDE', # /
-    'ELSE', # else
-    'EQUAL', # =
-    'EQUALEQUAL', # ==
-    'FALSE', # false
-    'FUNCTION', # function
-    'GE', # >=
-    'GT', # >
-    #       'IDENTIFIER',   #### Not used in this problem.
-    'IF', # if
-    'LBRACE', # {
-    'LE', # <=
-    'LPAREN', # (
-    'LT', # <
-    'MINUS', # -
-    'NOT', # !
+    'ANDAND',  # &&
+    'COMMA',  # ,
+    'DIVIDE',  # /
+    'ELSE',  # else
+    'EQUAL',  # =
+    'EQUALEQUAL',  # ==
+    'FALSE',  # false
+    'FUNCTION',  # function
+    'GE',  # >=
+    'GT',  # >
+    # 'IDENTIFIER',   #### Not used in this problem.
+    'IF',  # if
+    'LBRACE',  # {
+    'LE',  # <=
+    'LPAREN',  # (
+    'LT',  # <
+    'MINUS',  # -
+    'NOT',  # !
     #       'NUMBER',       #### Not used in this problem.
-    'OROR', # ||
-    'PLUS', # +
-    'RBRACE', # }
-    'RETURN', # return
-    'RPAREN', # )
-    'SEMICOLON', # ;
+    'OROR',  # ||
+    'PLUS',  # +
+    'RBRACE',  # }
+    'RETURN',  # return
+    'RPAREN',  # )
+    'SEMICOLON',  # ;
     #       'STRING',       #### Not used in this problem.
-    'TIMES', # *
-    'TRUE', # true
-    'VAR',          # var
+    'TIMES',  # *
+    'TRUE',  # true
+    'VAR',  # var
 )
 
 states = (
@@ -99,18 +100,18 @@ t_VAR = r'var'
 
 
 def t_comment_inline(t):
-    r'//[^\n]+'
+    r"""//[^\n]+"""
     t.lexer.lineno += 1
     pass
 
 
 def t_blockcomment(t):
-    r'/\*'
+    r"""/\*"""
     t.lexer.begin('blockcomment')
 
 
 def t_blockcomment_end(t):
-    r'\*/'
+    r"""\*/"""
     t.lexer.lineno += t.value.count('\n')
     t.lexer.begin('INITIAL')
 
@@ -119,11 +120,12 @@ def t_blockcomment_error(t):
     t.lexer.skip(1)
 
 
-t_ignore = ' \t\v\r' # whitespace
+t_ignore = ' \t\v\r'  # whitespace
 t_blockcomment_ignore = t_ignore
 
+
 def t_newline(t):
-    r'\n'
+    r"""\n"""
     t.lexer.lineno += 1
 
 
