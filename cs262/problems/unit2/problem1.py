@@ -73,19 +73,19 @@ tokens = ('NUM', 'ID')
 
 
 def t_ID(token):
-    r'[a-zA-Z]+'
+    r"""[a-zA-Z]+"""
     return token
 
 
 def t_NUM_hex(token):
-    r'0x[a-fA-F0-9]+'
+    r"""0x[a-fA-F0-9]+"""
     token.value = int(token.value, 0)
     token.type = 'NUM'
     return token
 
 
 def t_NUM_decimal(token):
-    r'[0-9]+'
+    r"""[0-9]+"""
     token.value = int(token.value) # won't work on hex numbers!
     token.type = 'NUM'
     return token
@@ -108,12 +108,13 @@ def test_lexer(input_string):
     result = []
     while True:
         tok = lexer.token()
-        if not tok: break
+        if not tok:
+            break
         result = result + [(tok.type, tok.value)]
     return result
 
 
-question1 = "0x19 equals 25" # 0x19 = (1*16) + 9
+question1 = "0x19 equals 25"  # 0x19 = (1*16) + 9
 answer1 = [('NUM', 25), ('ID', 'equals'), ('NUM', 25)]
 
 print test_lexer(question1) == answer1
