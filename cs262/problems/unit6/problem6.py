@@ -48,6 +48,8 @@ __author__ = 'dhensche'
 webpage = """<html>
 Put something here. You must include embedded JavaScript for full credit,
 but beyond that, do whatever you like.
+<script type="text/javascript">write("In Javascript Land");</script>
+<b>After javascript land</b>
 </html>
 """
 
