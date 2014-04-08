@@ -67,7 +67,7 @@ def re_to_fa(regexp):
             counter += 1
             s1 = State(counter)
             s0.add_transition(elem, s1)
-            nfa_table.append(deque([s0]))
+            nfa_table.append(deque([s0, s1]))
             allowable_characters.append(elem)
 
     starting_state = nfa_table[0][0].state_id
@@ -160,4 +160,4 @@ def explicitly_concatenate(regexp):
     return result
 
 
-print re_to_fa('(adb)?|c')
+print re_to_fa('a|b|c')
