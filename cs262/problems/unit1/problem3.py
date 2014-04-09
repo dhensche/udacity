@@ -29,13 +29,14 @@ __author__ = 'dhensche'
 #
 # For example, the regular expression r"a+|(?:ab+c)" might be encoded like
 # this:
-edges = {(1, 'a'): [2, 3],
-         (2, 'a'): [2],
-         (3, 'b'): [4, 3],
-         (4, 'c'): [5]}
-accepting = [2, 5]
+edges1 = {(1, 'a'): [2, 3],
+          (2, 'a'): [2],
+          (3, 'b'): [4, 3],
+          (4, 'c'): [5]}
+accepting1 = [2, 5]
 # It accepts both "aaa" (visiting states 1 2 2 and finally 2) and "abbc"
 # (visting states 1 3 3 4 and finally 5).
+
 
 def nfsmsim(string, current, edges, accepting):
     if string == "":
@@ -49,12 +50,11 @@ def nfsmsim(string, current, edges, accepting):
             return False
 
 
-
 # This problem includes some test cases to help you tell if you are on
 # the right track. You may want to make your own additional tests as well.
 
-print "Test case 1 passed: " + str(nfsmsim("abc", 1, edges, accepting) == True)
-print "Test case 2 passed: " + str(nfsmsim("aaa", 1, edges, accepting) == True)
-print "Test case 3 passed: " + str(nfsmsim("abbbc", 1, edges, accepting) == True)
-print "Test case 4 passed: " + str(nfsmsim("aabc", 1, edges, accepting) == False)
-print "Test case 5 passed: " + str(nfsmsim("", 1, edges, accepting) == False)
+print "Test case 1 passed: " + str(nfsmsim("abc", 1, edges1, accepting1) is True)
+print "Test case 2 passed: " + str(nfsmsim("aaa", 1, edges1, accepting1) is True)
+print "Test case 3 passed: " + str(nfsmsim("abbbc", 1, edges1, accepting1) is True)
+print "Test case 4 passed: " + str(nfsmsim("aabc", 1, edges1, accepting1) is False)
+print "Test case 5 passed: " + str(nfsmsim("", 1, edges1, accepting1) is False)

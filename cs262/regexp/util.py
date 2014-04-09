@@ -39,6 +39,14 @@ class WildCardToken(Token):
         return True
 
 
+class EpsilonToken(Token):
+    def __init__(self):
+        Token.__init__(self, '~')
+
+    def match(self, char):
+        return False
+
+
 class CharacterClassToken(Token):
     digits = {c for c in '0123456789'}
     spaces = {c for c in '\t\n\f\r '}
@@ -65,8 +73,10 @@ class RegExRepr:
     ZeroOrMore = Token('*')
     OneOrMore = Token('+')
     ZeroOrOne = Token('?')
+    LeftParen = Token('(')
+    RightParen = Token(')')
     Backslash = Token('\\')
-    Epsilon = Token('~')
+    Epsilon = EpsilonToken()
 
     # Used strictly in translating to something my re_to_nfa can understand
     Wildcard = WildCardToken()
@@ -83,13 +93,14 @@ class RegExRepr:
         self.regexp = regexp
         self.tokens = self.__tokenize()
         self.postfix = self.__postfix()
-        print self.tokens
+        self.state_table, self.start, self.accept = self.__to_nfa()
+        self.states = self.__collapse_table()
 
     def __tokenize(self):
         tokens = []
         prev = None
-        left_no_concat = {')'}.union(RegExRepr.binary_ops).union(RegExRepr.unary_ops)
-        right_no_concat = {'('}.union(RegExRepr.binary_ops)
+        left_no_concat = {RegExRepr.RightParen}.union(RegExRepr.binary_ops).union(RegExRepr.unary_ops)
+        right_no_concat = {RegExRepr.LeftParen}.union(RegExRepr.binary_ops)
         for char in self.regexp:
             if prev is not None and prev == RegExRepr.Backslash:
                 tokens.pop()
@@ -122,6 +133,10 @@ class RegExRepr:
                     char = RegExRepr.Wildcard
                 elif char == '\\':
                     char = RegExRepr.Backslash
+                elif char == '(':
+                    char = RegExRepr.LeftParen
+                elif char == ')':
+                    char = RegExRepr.RightParen
                 else:
                     char = Token(char)
 
@@ -138,15 +153,15 @@ class RegExRepr:
         stack = []
 
         for token in self.tokens:
-            if token == '(':
+            if token == RegExRepr.LeftParen:
                 stack.append(token)
-            elif token == ')':
-                while stack[-1] != '(':
+            elif token == RegExRepr.RightParen:
+                while stack[-1] != RegExRepr.LeftParen:
                     result.append(stack.pop())
                 stack.pop()
             elif token in RegExRepr.operators:
                 char_precedence = RegExRepr.precedence(token)
-                while stack and stack[-1] != '(' and RegExRepr.precedence(stack[-1]) > char_precedence:
+                while stack and stack[-1] != RegExRepr.LeftParen and RegExRepr.precedence(stack[-1]) > char_precedence:
                     result.append(stack.pop())
 
                 if stack and char_precedence == RegExRepr.precedence(stack[-1]):
@@ -164,7 +179,7 @@ class RegExRepr:
             result.append(stack.pop())
         return result
 
-    def to_nfa(self):
+    def __to_nfa(self):
         nfa_table = []
         counter = 0
 
@@ -211,13 +226,85 @@ class RegExRepr:
                 s0.add_transition(elem, s1)
                 nfa_table.append(deque([s0, s1]))
 
-        starting_state = nfa_table[0][0].state_id
-        accepting_state = nfa_table[0][-1].state_id
-        return nfa_table, starting_state, accepting_state
+        return nfa_table[0], nfa_table[0][0].state_id, nfa_table[0][-1].state_id
+
+    def __collapse_table(self):
+        states = {}
+        accepts = {self.accept}
+
+        def collapse(current, transitions, final_states):
+            final_paths = []
+            for (token, paths) in transitions.iteritems():
+                if token == RegExRepr.Epsilon:
+                    for path in paths:
+                        if path.state_id in final_states:
+                            final_states |= {current.state_id}
+                        final_paths += collapse(current, path.transitions, final_states)
+                else:
+                    final_paths += [(token, path.state_id) for path in paths]
+
+            return final_paths
+
+        for state in self.state_table:
+            for (tok, next_state) in collapse(state, state.transitions, accepts):
+                key = (state.state_id, tok)
+                next_states = states.get(key, [])
+                states[key] = next_states + [next_state]
+
+        self.accept = accepts
+        return states
+
+    def __nfsmaccepts(self, current, visited):
+        if current in self.accept:
+            return ''
+        elif current in visited:
+            return None
+        else:
+            for edge, next_states in self.states.items():
+                for next_state in next_states:
+                    if current is edge[0]:
+                        visited += [current]
+                        sample_string = self.__nfsmaccepts(next_state, visited)
+                        if sample_string is not None:
+                            return edge[1] + sample_string
+            return None
+
+    def __nfsmtrim(self):
+        """This trims off the edges that don't lead to an accepting state and any accepting states
+        that are unreachable. It does this by going over the existing edges and seeing if an accepting
+        state can be reached from it using nfsmaccepts. If one can be reached the edge is valid and retained,
+        otherwise it is dropped from the valid edges.
+
+        @return: trimmed edges and accepting states
+        """
+        new_edges = {}
+        good_states = []
+        for edge, next_states in self.states.iteritems():
+            for next_state in next_states:
+                if self.__nfsmaccepts(next_state, []) is not None:
+                    if edge not in new_edges:
+                        new_edges[edge] = []
+                    new_edges[edge] += [next_state]
+                    good_states += [next_state]
+
+        return new_edges, [state for state in self.accept if state in good_states]
+
+    def matches(self, haystack):
+        def helper(string, current):
+            if string == "":
+                return current in self.accept
+            else:
+                for ((state, tok), paths) in self.states.iteritems():
+                    if tok.match(string[0]) and state == current:
+                        return any(helper(string[1:], path) for path in paths)
+                    elif tok == RegExRepr.Epsilon and state == current:
+                        return any(helper(string, path) for path in paths)
+                return False
+
+        return helper(haystack, self.start)
 
     @staticmethod
     def precedence(char):
         return RegExRepr.operators.get(char, 4)
 
-print RegExRepr('a\w+b').to_nfa()
-print len(CharacterClassToken.alpha_digits)
+print RegExRepr('a|b|C|D|E|F|G').matches('D')
