@@ -81,7 +81,36 @@ __author__ = 'dhensche'
 
 
 def evaluate(ast):
-    return ast
+    env = {}
+    sales = []
+    buys = []
+
+    for stmt in ast:
+        person, action = stmt[0], stmt[1]
+        if action == 'has':
+            env[person] = stmt[2]
+        else:
+            item, price = stmt[2], stmt[3]
+            if action == 'buy':
+                buys += [(person, item, price)]
+            else:
+                sales += [(person, item, price)]
+
+    while True:
+        updated = False
+        for buy in buys:
+            for sale in sales:
+                if buy[1:] == sale[1:] and env[buy[0]] >= buy[2]:
+                    env[buy[0]] -= buy[2]
+                    env[sale[0]] += buy[2]
+                    buys.remove(buy)
+                    sales.remove(sale)
+                    updated = True
+
+        if not updated:
+            break
+
+    return env
 # fill in your code here ...
 
 
