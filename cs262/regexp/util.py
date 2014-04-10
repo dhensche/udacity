@@ -58,7 +58,7 @@ class CharacterClassToken(Token):
         self.inverted = inverted
 
     def match(self, char):
-        return not self.inverted != char in self.characters
+        return (self.inverted and char not in self.characters) or (not self.inverted and char in self.characters)
 
 
 class RegExRepr:
@@ -93,8 +93,8 @@ class RegExRepr:
         self.regexp = regexp
         self.tokens = self.__tokenize()
         self.postfix = self.__postfix()
-        self.state_table, self.start, self.accept = self.__to_nfa()
-        self.states = self.__collapse_table()
+        self.state_table, self.start, self.accept, self.allowable_tokens = self.__to_nfa()
+        self.dfa_start, self.edges, self.dfa_accepts = self.__to_dfa()
 
     def __tokenize(self):
         tokens = []
@@ -104,7 +104,7 @@ class RegExRepr:
         for char in self.regexp:
             if prev is not None and prev == RegExRepr.Backslash:
                 tokens.pop()
-                if tokens[-1] == RegExRepr.Concatenate:
+                if tokens and tokens[-1] == RegExRepr.Concatenate:
                     tokens.pop()
                 if char == 'd':
                     char = RegExRepr.DigitClass
@@ -141,7 +141,7 @@ class RegExRepr:
                     char = Token(char)
 
             # https://www.ssucet.org/pluginfile.php/2041/mod_resource/content/1/13-regextodfa/index.html#slide-24
-            if prev is not None and prev not in right_no_concat and char not in left_no_concat:
+            if prev and tokens and prev not in right_no_concat and char not in left_no_concat:
                 tokens += [RegExRepr.Concatenate, char]
             else:
                 tokens += [char]
@@ -181,6 +181,7 @@ class RegExRepr:
 
     def __to_nfa(self):
         nfa_table = []
+        allowable_tokens = set()
         counter = 0
 
         for elem in self.postfix:
@@ -223,88 +224,68 @@ class RegExRepr:
                 s0 = State(counter)
                 counter += 1
                 s1 = State(counter)
+                allowable_tokens |= {elem}
                 s0.add_transition(elem, s1)
                 nfa_table.append(deque([s0, s1]))
 
-        return nfa_table[0], nfa_table[0][0].state_id, nfa_table[0][-1].state_id
+        return nfa_table[0], nfa_table[0][0].state_id, nfa_table[0][-1].state_id, allowable_tokens
 
-    def __collapse_table(self):
-        states = {}
-        accepts = {self.accept}
+    def __to_dfa(self):
+        edges = {state.state_id: state for state in self.state_table}
+        dfa_edges = {}
 
-        def collapse(current, transitions, final_states):
-            final_paths = []
-            for (token, paths) in transitions.iteritems():
+        def close_over(state, visited=set()):
+            if state in visited:
+                return frozenset()
+            epsilon_states = {state.state_id}
+            for (token, paths) in state.transitions.iteritems():
                 if token == RegExRepr.Epsilon:
                     for path in paths:
-                        if path.state_id in final_states:
-                            final_states |= {current.state_id}
-                        final_paths += collapse(current, path.transitions, final_states)
-                else:
-                    final_paths += [(token, path.state_id) for path in paths]
+                        epsilon_states |= {path.state_id}
+                        epsilon_states |= close_over(path, visited | {state})
 
-            return final_paths
+            return frozenset(epsilon_states)
 
-        for state in self.state_table:
-            for (tok, next_state) in collapse(state, state.transitions, accepts):
-                key = (state.state_id, tok)
-                next_states = states.get(key, [])
-                states[key] = next_states + [next_state]
+        def move(states, token):
+            outgoing = [edges[state].transitions[token] for state in states if token in edges[state].transitions]
+            return set(*outgoing) if outgoing else set()
 
-        self.accept = accepts
-        return states
+        dfa_start = close_over(edges[self.start])
+        dfa_states = [dfa_start]
+        dfa_accepts = set()
+        updated = True
+        while dfa_states and updated:
+            dfa_state = dfa_states.pop()
+            if self.accept in dfa_state:
+                dfa_accepts |= {dfa_state}
 
-    def __nfsmaccepts(self, current, visited):
-        if current in self.accept:
-            return ''
-        elif current in visited:
-            return None
-        else:
-            for edge, next_states in self.states.items():
-                for next_state in next_states:
-                    if current is edge[0]:
-                        visited += [current]
-                        sample_string = self.__nfsmaccepts(next_state, visited)
-                        if sample_string is not None:
-                            return edge[1] + sample_string
-            return None
+            for tok in self.allowable_tokens:
+                if (dfa_state, tok) in dfa_edges:
+                    continue
+                reachable = frozenset(*[close_over(out) for out in move(dfa_state, tok)])
+                if reachable:
+                    dfa_states += [reachable]
+                    if (dfa_state, tok) not in dfa_edges:
+                        dfa_edges[(dfa_state, tok)] = set()
+                    dfa_edges[(dfa_state, tok)] |= reachable
 
-    def __nfsmtrim(self):
-        """This trims off the edges that don't lead to an accepting state and any accepting states
-        that are unreachable. It does this by going over the existing edges and seeing if an accepting
-        state can be reached from it using nfsmaccepts. If one can be reached the edge is valid and retained,
-        otherwise it is dropped from the valid edges.
-
-        @return: trimmed edges and accepting states
-        """
-        new_edges = {}
-        good_states = []
-        for edge, next_states in self.states.iteritems():
-            for next_state in next_states:
-                if self.__nfsmaccepts(next_state, []) is not None:
-                    if edge not in new_edges:
-                        new_edges[edge] = []
-                    new_edges[edge] += [next_state]
-                    good_states += [next_state]
-
-        return new_edges, [state for state in self.accept if state in good_states]
+        return dfa_start, dfa_edges, dfa_accepts
 
     def matches(self, haystack):
         def helper(string, current):
             if string == "":
-                return current in self.accept
+                return current in self.dfa_accepts
             else:
-                for ((state, tok), paths) in self.states.iteritems():
+                for ((state, tok), paths) in self.edges.iteritems():
                     if tok.match(string[0]) and state == current:
-                        return any(helper(string[1:], path) for path in paths)
-                    elif tok == RegExRepr.Epsilon and state == current:
-                        return any(helper(string, path) for path in paths)
+                        return helper(string[1:], paths)
                 return False
 
-        return helper(haystack, self.start)
+        return helper(haystack, self.dfa_start)
 
     @staticmethod
     def precedence(char):
         return RegExRepr.operators.get(char, 4)
 
-print RegExRepr('a|b|C|D|E|F|G').matches('D')
+
+print RegExRepr('\d+\w?').matches('3d3')
