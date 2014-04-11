@@ -98,16 +98,14 @@ class RegExRepr:
     def __init__(self, regexp):
         self.regexp = regexp
         self.tokens = self.__tokenize()
-        print(self.tokens)
         self.start, self.edges, self.accepts, self.allowable_tokens = self.__parse()
 
     @staticmethod
     def __evaluate_class(characters):
         tokens = []
-        char = characters.popleft()
-        inverted = char == '^'
-        if not inverted:
-            characters.appendleft(char)
+        inverted = characters[0] == '^'
+        if inverted:
+            characters.popleft()
         prev = None
         range_open = False
         while characters:
