@@ -278,7 +278,8 @@ class RegExRepr:
             else:
                 for ((state, tok), paths) in self.edges.iteritems():
                     if tok.match(string[0]) and state == current:
-                        return helper(string[1:], paths)
+                        if helper(string[1:], paths):
+                            return True
                 return False
 
         return helper(haystack, self.dfa_start)
@@ -288,4 +289,4 @@ class RegExRepr:
         return RegExRepr.operators.get(char, 4)
 
 
-print RegExRepr('\d+\w?').matches('3d3')
+print RegExRepr('\d+\w?').matches('3356')
