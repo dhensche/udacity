@@ -53,6 +53,7 @@ class CharacterClassToken(Token):
     alpha_digits = {c for c in '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'}
 
     def __init__(self, characters, inverted=False):
+        characters = frozenset(characters)
         Token.__init__(self, characters)
         self.characters = characters
         self.inverted = inverted
@@ -62,12 +63,6 @@ class CharacterClassToken(Token):
 
 
 class RegExRepr:
-    DigitClass = CharacterClassToken(CharacterClassToken.digits)
-    NonDigitClass = CharacterClassToken(CharacterClassToken.digits, inverted=True)
-    WordClass = CharacterClassToken(CharacterClassToken.alpha_digits)
-    NonWordClass = CharacterClassToken(CharacterClassToken.alpha_digits, inverted=True)
-    WhitespaceClass = CharacterClassToken(CharacterClassToken.spaces)
-    NonWhitespaceClass = CharacterClassToken(CharacterClassToken.spaces, inverted=True)
     Alternate = Token('|')
     Concatenate = Token('@')
     ZeroOrMore = Token('*')
@@ -75,10 +70,11 @@ class RegExRepr:
     ZeroOrOne = Token('?')
     LeftParen = Token('(')
     RightParen = Token(')')
+    LeftSBracket = Token('[')
+    RightSBracket = Token(']')
     Backslash = Token('\\')
-    Epsilon = EpsilonToken()
 
-    # Used strictly in translating to something my re_to_nfa can understand
+    Epsilon = EpsilonToken()
     Wildcard = WildCardToken()
 
     operators = {Alternate: 1,
@@ -87,66 +83,112 @@ class RegExRepr:
                  OneOrMore: 3,
                  ZeroOrOne: 3}
     unary_ops = {ZeroOrOne, ZeroOrMore, OneOrMore}
-    binary_ops = {Alternate}
+
+    escape_sequences = {
+        'd': CharacterClassToken(CharacterClassToken.digits),
+        'D': CharacterClassToken(CharacterClassToken.digits, inverted=True),
+        'w': CharacterClassToken(CharacterClassToken.alpha_digits),
+        'W': CharacterClassToken(CharacterClassToken.alpha_digits, inverted=True),
+        's': CharacterClassToken(CharacterClassToken.spaces),
+        'S': CharacterClassToken(CharacterClassToken.spaces, inverted=True)
+    }
+    left_no_concat = {RightParen, Alternate}.union(unary_ops)
+    right_no_concat = {LeftParen, Alternate}
 
     def __init__(self, regexp):
         self.regexp = regexp
         self.tokens = self.__tokenize()
-        self.postfix = self.__postfix()
-        self.state_table, self.start, self.accept, self.allowable_tokens = self.__to_nfa()
-        self.dfa_start, self.edges, self.dfa_accepts = self.__to_dfa()
+        print(self.tokens)
+        self.start, self.edges, self.accepts, self.allowable_tokens = self.__parse()
+
+    @staticmethod
+    def __evaluate_class(characters):
+        tokens = []
+        char = characters.popleft()
+        inverted = char == '^'
+        if not inverted:
+            characters.appendleft(char)
+        prev = None
+        range_open = False
+        while characters:
+            char = characters.popleft()
+            if char == ']':
+                if range_open:
+                    raise SyntaxError('Unclosed range in character class')
+                else:
+                    return CharacterClassToken(tokens, inverted), characters
+            elif char == '-' and prev:
+                if isinstance(prev, CharacterClassToken):
+                    raise SyntaxError('Invalid character range')
+                else:
+                    range_open = True
+                    continue
+            elif char == '\\':
+                char = characters.popleft()
+                char = RegExRepr.escape_sequences.get(char, Token(char))
+            else:
+                char = Token(char)
+
+            if isinstance(char, CharacterClassToken):
+                if range_open:
+                    raise SyntaxError('Invalid character range')
+                else:
+                    tokens += char.characters
+            else:
+                if range_open:
+                    start_ord = ord(prev.s)
+                    end_ord = ord(char.s)
+                    if start_ord > end_ord:
+                        raise SyntaxError('Invalid character range')
+                    else:
+                        range_open = False
+                        tokens += [chr(code) for code in range(start_ord + 1, end_ord + 1)]
+                else:
+                    tokens += [char.s]
+
+            prev = char
+        raise SyntaxError('Unclosed character class')
 
     def __tokenize(self):
         tokens = []
         prev = None
-        left_no_concat = {RegExRepr.RightParen}.union(RegExRepr.binary_ops).union(RegExRepr.unary_ops)
-        right_no_concat = {RegExRepr.LeftParen}.union(RegExRepr.binary_ops)
-        for char in self.regexp:
-            if prev is not None and prev == RegExRepr.Backslash:
-                tokens.pop()
-                if tokens and tokens[-1] == RegExRepr.Concatenate:
-                    tokens.pop()
-                if char == 'd':
-                    char = RegExRepr.DigitClass
-                elif char == 'D':
-                    char = RegExRepr.NonDigitClass
-                elif char == 'w':
-                    char = RegExRepr.WordClass
-                elif char == 'W':
-                    char = RegExRepr.NonWordClass
-                elif char == 's':
-                    char = RegExRepr.WhitespaceClass
-                elif char == 'S':
-                    char = RegExRepr.NonWhitespaceClass
-                else:
-                    char = Token(char)
+        characters = deque(self.regexp)
+        while characters:
+            char = characters.popleft()
+            if char == '\\':
+                char = characters.popleft()
+                char = RegExRepr.escape_sequences.get(char, Token(char))
+            elif char == '*':
+                char = RegExRepr.ZeroOrMore
+            elif char == '+':
+                char = RegExRepr.OneOrMore
+            elif char == '?':
+                char = RegExRepr.ZeroOrOne
+            elif char == '|':
+                char = RegExRepr.Alternate
+            elif char == '.':
+                char = RegExRepr.Wildcard
+            elif char == '(':
+                char = RegExRepr.LeftParen
+            elif char == ')':
+                char = RegExRepr.RightParen
+            elif char == '[':
+                char, characters = RegExRepr.__evaluate_class(characters)
             else:
-                if char == '*':
-                    char = RegExRepr.ZeroOrMore
-                elif char == '+':
-                    char = RegExRepr.OneOrMore
-                elif char == '?':
-                    char = RegExRepr.ZeroOrOne
-                elif char == '|':
-                    char = RegExRepr.Alternate
-                elif char == '.':
-                    char = RegExRepr.Wildcard
-                elif char == '\\':
-                    char = RegExRepr.Backslash
-                elif char == '(':
-                    char = RegExRepr.LeftParen
-                elif char == ')':
-                    char = RegExRepr.RightParen
-                else:
-                    char = Token(char)
+                char = Token(char)
 
             # https://www.ssucet.org/pluginfile.php/2041/mod_resource/content/1/13-regextodfa/index.html#slide-24
-            if prev and tokens and prev not in right_no_concat and char not in left_no_concat:
+            if prev and tokens and prev not in RegExRepr.right_no_concat and char not in RegExRepr.left_no_concat:
                 tokens += [RegExRepr.Concatenate, char]
             else:
                 tokens += [char]
             prev = char
+
         return tokens
+
+    def __parse(self):
+        postfix = self.__postfix()
+        return self.__to_dfa(*self.__to_nfa(postfix))
 
     def __postfix(self):
         result = []
@@ -179,12 +221,13 @@ class RegExRepr:
             result.append(stack.pop())
         return result
 
-    def __to_nfa(self):
+    @staticmethod
+    def __to_nfa(postfix_tokens):
         nfa_table = []
         allowable_tokens = set()
         counter = 0
 
-        for elem in self.postfix:
+        for elem in postfix_tokens:
             if elem == RegExRepr.Concatenate:
                 e2 = nfa_table.pop()
                 e1 = nfa_table.pop()
@@ -230,8 +273,9 @@ class RegExRepr:
 
         return nfa_table[0], nfa_table[0][0].state_id, nfa_table[0][-1].state_id, allowable_tokens
 
-    def __to_dfa(self):
-        edges = {state.state_id: state for state in self.state_table}
+    @staticmethod
+    def __to_dfa(state_table, nfa_start, nfa_accepts, allowable_tokens):
+        edges = {state.state_id: state for state in state_table}
         dfa_edges = {}
 
         def close_over(state, visited=set()):
@@ -250,16 +294,16 @@ class RegExRepr:
             outgoing = [edges[state].transitions[token] for state in states if token in edges[state].transitions]
             return set(*outgoing) if outgoing else set()
 
-        dfa_start = close_over(edges[self.start])
+        dfa_start = close_over(edges[nfa_start])
         dfa_states = [dfa_start]
         dfa_accepts = set()
         updated = True
         while dfa_states and updated:
             dfa_state = dfa_states.pop()
-            if self.accept in dfa_state:
+            if nfa_accepts in dfa_state:
                 dfa_accepts |= {dfa_state}
 
-            for tok in self.allowable_tokens:
+            for tok in allowable_tokens:
                 if (dfa_state, tok) in dfa_edges:
                     continue
                 reachable = frozenset(*[close_over(out) for out in move(dfa_state, tok)])
@@ -269,12 +313,12 @@ class RegExRepr:
                         dfa_edges[(dfa_state, tok)] = set()
                     dfa_edges[(dfa_state, tok)] |= reachable
 
-        return dfa_start, dfa_edges, dfa_accepts
+        return dfa_start, dfa_edges, dfa_accepts, allowable_tokens
 
     def matches(self, haystack):
         def helper(string, current):
             if string == "":
-                return current in self.dfa_accepts
+                return current in self.accepts
             else:
                 for ((state, tok), paths) in self.edges.iteritems():
                     if tok.match(string[0]) and state == current:
@@ -282,11 +326,11 @@ class RegExRepr:
                             return True
                 return False
 
-        return helper(haystack, self.dfa_start)
+        return helper(haystack, self.start)
 
     @staticmethod
     def precedence(char):
         return RegExRepr.operators.get(char, 4)
 
 
-print RegExRepr('\d+\w?').matches('3356')
+print RegExRepr('\([\w\t\n]+\)').matches('(956sadfssdafjsdoifioj3489asdfoij34890adflk3409\t\n8sajiofdf7)')
