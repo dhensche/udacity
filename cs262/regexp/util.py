@@ -296,7 +296,6 @@ class RegExRepr:
         while stack:
             result.append(stack.pop())
 
-        print result
         return result
 
     @staticmethod
