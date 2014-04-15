@@ -168,7 +168,7 @@ class RegExRepr:
 
     @staticmethod
     def __evaluate_count(characters):
-        min_string, max_string = '0', '0'
+        min_string, max_string = '0', 'INFINITE'
         comma_found = False
         while characters:
             char = characters.popleft()
@@ -182,14 +182,14 @@ class RegExRepr:
                 except ValueError:
                     raise SyntaxError("Invalid minimum value: %s" % min_string)
                 try:
-                    maximum = int(max_string) if comma_found else minimum
+                    maximum = int(max_string[8:]) if comma_found and max_string != 'INFINITE' else minimum
                 except ValueError:
-                    raise SyntaxError("Invalid maximum value: %s" % max_string)
+                    raise SyntaxError("Invalid maximum value: %s" % max_string[8:])
                 if minimum == maximum == 0:
                     raise SyntaxError("Count range must contain a non-zero value")
-                elif maximum < minimum:
+                elif max_string != 'INFINITE' and maximum < minimum:
                     raise SyntaxError("Max value in count range must be larger than min")
-                return CountToken(minimum, maximum), characters
+                return CountToken(minimum, maximum if max_string != 'INFINITE' else 'INFINITE'), characters
             elif comma_found:
                 max_string += char
             else:
@@ -240,6 +240,19 @@ class RegExRepr:
         postfix = self.__postfix()
         return self.__to_dfa(*self.__to_nfa(postfix))
 
+    @staticmethod
+    def __extract_expression(current_result):
+        char = current_result.pop()
+        if char in RegExRepr.operators:
+            v1 = RegExRepr.__extract_expression(current_result)
+            if char in RegExRepr.unary_ops:
+                return v1 + [char]
+            else:
+                v2 = RegExRepr.__extract_expression(current_result)
+                return v2 + v1 + [char]
+        else:
+            return [char]
+
     def __postfix(self):
         result = []
         stack = []
@@ -261,7 +274,20 @@ class RegExRepr:
                     stack.append(token)
                 else:
                     if token in RegExRepr.unary_ops:
-                        result.append(token)
+                        if isinstance(token, CountToken):
+                            expression = RegExRepr.__extract_expression(list(result))
+                            if token.minimum > 1:
+                                for i in range(token.minimum - 1):
+                                    result += expression + [RegExRepr.Concatenate]
+                            else:
+                                result.append(RegExRepr.ZeroOrOne)
+                            if token.maximum == 'INFINITE':
+                                result += expression + [RegExRepr.ZeroOrMore, RegExRepr.Concatenate]
+                            elif token.maximum > token.minimum:
+                                for i in range(token.maximum - max(token.minimum, 1)):
+                                    result += expression + [RegExRepr.ZeroOrOne, RegExRepr.Concatenate]
+                        else:
+                            result.append(token)
                     else:
                         stack.append(token)
             else:
@@ -269,6 +295,8 @@ class RegExRepr:
 
         while stack:
             result.append(stack.pop())
+
+        print result
         return result
 
     @staticmethod
@@ -312,10 +340,6 @@ class RegExRepr:
                 e1 = nfa_table.pop()
                 e1[0].add_transition(RegExRepr.Epsilon, e1[-1])
                 nfa_table.append(e1)
-            elif isinstance(elem, CountToken):
-                e1 = nfa_table.pop()
-                e1[0].add_transition(RegExRepr.Epsilon, e1[-1])
-                nfa_table.append(e1)
             else:
                 counter += 1
                 s0 = State(counter)
@@ -355,7 +379,8 @@ class RegExRepr:
 
         while dfa_states:
             dfa_state = dfa_states.pop()
-            mapping[dfa_state] = len(mapping)
+            if dfa_state not in mapping:
+                mapping[dfa_state] = len(mapping)
             if nfa_accepts in dfa_state:
                 dfa_accepts |= {dfa_state}
 
@@ -391,7 +416,8 @@ class RegExRepr:
 
 
 #print RegExRepr('a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa').matches('aaaaaaaaaaaaaaaaaaaa')
-print RegExRepr('.+').matches('ab{}\n')
+print RegExRepr('(ab+|c){,5}').matches('')
+print RegExRepr('(ab+|c)(ab+|c)(ab+|c)').matches('ababab')
 
 # import timeit
 #
