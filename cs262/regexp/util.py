@@ -32,14 +32,6 @@ class Token:
         return char == self.s
 
 
-class WildCardToken(Token):
-    def __init__(self):
-        Token.__init__(self, 'ANY')
-
-    def match(self, char):
-        return True
-
-
 class EpsilonToken(Token):
     def __init__(self):
         Token.__init__(self, 'EPSILON')
@@ -101,13 +93,14 @@ class RegExRepr:
     Backslash = Token('\\')
 
     Epsilon = EpsilonToken()
-    Wildcard = WildCardToken()
+    Wildcard = CharacterClassToken('\n\r', inverted=True)
 
     operators = {Alternate: 1,
                  Concatenate: 2,
                  ZeroOrMore: 3,
                  OneOrMore: 3,
-                 ZeroOrOne: 3}
+                 ZeroOrOne: 3,
+                 CountToken(0, 1): 3}
     unary_ops = {ZeroOrOne, ZeroOrMore, OneOrMore, CountToken(0, 1)}
 
     escape_sequences = {
@@ -189,7 +182,7 @@ class RegExRepr:
                 except ValueError:
                     raise SyntaxError("Invalid minimum value: %s" % min_string)
                 try:
-                    maximum = int(max_string)
+                    maximum = int(max_string) if comma_found else minimum
                 except ValueError:
                     raise SyntaxError("Invalid maximum value: %s" % max_string)
                 if minimum == maximum == 0:
@@ -367,6 +360,8 @@ class RegExRepr:
                 dfa_accepts |= {dfa_state}
 
             for tok in allowable_tokens:
+                if (dfa_state, tok) in dfa_edges:
+                    continue
                 reachable = [close_over(out) for out in move(dfa_state, tok)]
 
                 if reachable:
@@ -395,12 +390,12 @@ class RegExRepr:
         return RegExRepr.operators.get(char, 4)
 
 
-print RegExRepr('a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa').matches('aaaaaaaaaaaaaaaaaaaa')
-print RegExRepr('[a-z]|ab').matches('za')
+#print RegExRepr('a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa').matches('aaaaaaaaaaaaaaaaaaaa')
+print RegExRepr('.+').matches('ab{}\n')
 
-import timeit
-
-print timeit.timeit('findall("a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaa")', setup='from re import findall', number=100)
-print timeit.timeit('reg.matches("aaaaaaaaaaaaaaaaaaa")',
-                    setup='from __main__ import RegExRepr; reg = RegExRepr("a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa")',
-                    number=100)
+# import timeit
+#
+# print timeit.timeit('findall("a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaa")', setup='from re import findall', number=100)
+# print timeit.timeit('reg.matches("aaaaaaaaaaaaaaaaaaa")',
+#                     setup='from __main__ import RegExRepr; reg = RegExRepr("a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa")',
+#                     number=100)
