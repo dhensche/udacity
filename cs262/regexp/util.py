@@ -1,4 +1,4 @@
-from collections import deque
+from collections import deque, defaultdict
 
 __author__ = 'dhensche'
 
@@ -6,18 +6,13 @@ __author__ = 'dhensche'
 class State:
     def __init__(self, state_id):
         self.state_id = state_id
-        self.transitions = {}
+        self.transitions = defaultdict(frozenset)
 
     def add_transition(self, elem, next_state):
-        next_states = self.transitions.get(elem, [])
-        self.transitions[elem] = next_states + [next_state]
+        self.transitions[elem] |= {next_state}
 
     def __repr__(self):
-        result = []
-        for (elem, next_states) in self.transitions.iteritems():
-            for next_state in next_states:
-                result += [str(self.state_id) + '--' + str(elem) + '->' + str(next_state.state_id)]
-        return '\n'.join(result)
+        return str(self.state_id)
 
 
 class Token:
@@ -26,6 +21,12 @@ class Token:
 
     def __repr__(self):
         return str(self.s)
+
+    def __eq__(self, other):
+        return self.s == other.s
+
+    def __hash__(self):
+        return hash(self.s)
 
     def match(self, char):
         return char == self.s
@@ -41,10 +42,29 @@ class WildCardToken(Token):
 
 class EpsilonToken(Token):
     def __init__(self):
-        Token.__init__(self, '~')
+        Token.__init__(self, 'EPSILON')
 
     def match(self, char):
         return False
+
+
+class CountToken(Token):
+    def __init__(self, minimum, maximum):
+        Token.__init__(self, 'COUNT')
+        self.minimum = minimum
+        self.maximum = maximum
+
+    def __repr__(self):
+        return "COUNT{%d,%d}" % (self.minimum, self.maximum)
+
+    def __eq__(self, other):
+        return isinstance(other, CountToken)
+
+    def __hash__(self):
+        return hash(CountToken)
+
+    def match(self, char):
+        return False  # this token should never be around in the end
 
 
 class CharacterClassToken(Token):
@@ -57,6 +77,12 @@ class CharacterClassToken(Token):
         Token.__init__(self, characters)
         self.characters = characters
         self.inverted = inverted
+
+    def __eq__(self, other):
+        return isinstance(other, CharacterClassToken) and self.inverted == other.inverted and self.s == other.s
+
+    def __hash__(self):
+        return hash(tuple([self.inverted, self.characters]))
 
     def match(self, char):
         return (self.inverted and char not in self.characters) or (not self.inverted and char in self.characters)
@@ -82,7 +108,7 @@ class RegExRepr:
                  ZeroOrMore: 3,
                  OneOrMore: 3,
                  ZeroOrOne: 3}
-    unary_ops = {ZeroOrOne, ZeroOrMore, OneOrMore}
+    unary_ops = {ZeroOrOne, ZeroOrMore, OneOrMore, CountToken(0, 1)}
 
     escape_sequences = {
         'd': CharacterClassToken(CharacterClassToken.digits),
@@ -147,6 +173,37 @@ class RegExRepr:
             prev = char
         raise SyntaxError('Unclosed character class')
 
+    @staticmethod
+    def __evaluate_count(characters):
+        min_string, max_string = '0', '0'
+        comma_found = False
+        while characters:
+            char = characters.popleft()
+            if char == ',':
+                comma_found = True
+            elif char == '-':
+                raise SyntaxError('Only positive numbers allowed in count range')
+            elif char == '}':
+                try:
+                    minimum = int(min_string)
+                except ValueError:
+                    raise SyntaxError("Invalid minimum value: %s" % min_string)
+                try:
+                    maximum = int(max_string)
+                except ValueError:
+                    raise SyntaxError("Invalid maximum value: %s" % max_string)
+                if minimum == maximum == 0:
+                    raise SyntaxError("Count range must contain a non-zero value")
+                elif maximum < minimum:
+                    raise SyntaxError("Max value in count range must be larger than min")
+                return CountToken(minimum, maximum), characters
+            elif comma_found:
+                max_string += char
+            else:
+                min_string += char
+
+        raise SyntaxError('Unclosed count range')
+
     def __tokenize(self):
         tokens = []
         prev = None
@@ -155,32 +212,34 @@ class RegExRepr:
             char = characters.popleft()
             if char == '\\':
                 char = characters.popleft()
-                char = RegExRepr.escape_sequences.get(char, Token(char))
+                token = RegExRepr.escape_sequences.get(char, Token(char))
             elif char == '*':
-                char = RegExRepr.ZeroOrMore
+                token = RegExRepr.ZeroOrMore
             elif char == '+':
-                char = RegExRepr.OneOrMore
+                token = RegExRepr.OneOrMore
             elif char == '?':
-                char = RegExRepr.ZeroOrOne
+                token = RegExRepr.ZeroOrOne
             elif char == '|':
-                char = RegExRepr.Alternate
+                token = RegExRepr.Alternate
             elif char == '.':
-                char = RegExRepr.Wildcard
+                token = RegExRepr.Wildcard
             elif char == '(':
-                char = RegExRepr.LeftParen
+                token = RegExRepr.LeftParen
             elif char == ')':
-                char = RegExRepr.RightParen
+                token = RegExRepr.RightParen
             elif char == '[':
-                char, characters = RegExRepr.__evaluate_class(characters)
+                token, characters = RegExRepr.__evaluate_class(characters)
+            elif char == '{':
+                token, characters = RegExRepr.__evaluate_count(characters)
             else:
-                char = Token(char)
+                token = Token(char)
 
             # https://www.ssucet.org/pluginfile.php/2041/mod_resource/content/1/13-regextodfa/index.html#slide-24
-            if prev and tokens and prev not in RegExRepr.right_no_concat and char not in RegExRepr.left_no_concat:
-                tokens += [RegExRepr.Concatenate, char]
+            if prev and tokens and prev not in RegExRepr.right_no_concat and token not in RegExRepr.left_no_concat:
+                tokens += [RegExRepr.Concatenate, token]
             else:
-                tokens += [char]
-            prev = char
+                tokens += [token]
+            prev = token
 
         return tokens
 
@@ -260,6 +319,10 @@ class RegExRepr:
                 e1 = nfa_table.pop()
                 e1[0].add_transition(RegExRepr.Epsilon, e1[-1])
                 nfa_table.append(e1)
+            elif isinstance(elem, CountToken):
+                e1 = nfa_table.pop()
+                e1[0].add_transition(RegExRepr.Epsilon, e1[-1])
+                nfa_table.append(e1)
             else:
                 counter += 1
                 s0 = State(counter)
@@ -273,7 +336,7 @@ class RegExRepr:
 
     @staticmethod
     def __to_dfa(state_table, nfa_start, nfa_accepts, allowable_tokens):
-        edges = {state.state_id: state for state in state_table}
+        states = {state.state_id: state for state in state_table}
         dfa_edges = {}
 
         def close_over(state, visited=set()):
@@ -288,39 +351,40 @@ class RegExRepr:
 
             return frozenset(epsilon_states)
 
-        def move(states, token):
-            outgoing = [edges[state].transitions[token] for state in states if token in edges[state].transitions]
-            return set(*outgoing) if outgoing else set()
+        def move(state_ids, token):
+            outgoing = [states[state_id].transitions[token] for state_id in state_ids]
+            return frozenset.union(*outgoing) if outgoing else frozenset()
 
-        dfa_start = close_over(edges[nfa_start])
+        dfa_start = close_over(states[nfa_start])
         dfa_states = [dfa_start]
+        mapping = {}
         dfa_accepts = set()
-        updated = True
-        while dfa_states and updated:
+
+        while dfa_states:
             dfa_state = dfa_states.pop()
+            mapping[dfa_state] = len(mapping)
             if nfa_accepts in dfa_state:
                 dfa_accepts |= {dfa_state}
 
             for tok in allowable_tokens:
-                if (dfa_state, tok) in dfa_edges:
-                    continue
-                reachable = frozenset(*[close_over(out) for out in move(dfa_state, tok)])
-                if reachable:
-                    dfa_states += [reachable]
-                    if (dfa_state, tok) not in dfa_edges:
-                        dfa_edges[(dfa_state, tok)] = set()
-                    dfa_edges[(dfa_state, tok)] |= reachable
+                reachable = [close_over(out) for out in move(dfa_state, tok)]
 
-        return dfa_start, dfa_edges, dfa_accepts, allowable_tokens
+                if reachable:
+                    reachable_set = frozenset.union(*reachable)
+                    dfa_states += [reachable_set]
+                    dfa_edges[(dfa_state, tok)] = reachable_set
+
+        return mapping[dfa_start], {(mapping[state], tok): mapping[next_state] for ((state, tok), next_state) in
+                                    dfa_edges.iteritems()}, {mapping[state] for state in dfa_accepts}, allowable_tokens
 
     def matches(self, haystack):
         def helper(string, current):
             if string == "":
                 return current in self.accepts
             else:
-                for ((state, tok), paths) in self.edges.iteritems():
+                for ((state, tok), next_state) in self.edges.iteritems():
                     if tok.match(string[0]) and state == current:
-                        if helper(string[1:], paths):
+                        if helper(string[1:], next_state):
                             return True
                 return False
 
@@ -331,4 +395,12 @@ class RegExRepr:
         return RegExRepr.operators.get(char, 4)
 
 
-print RegExRepr('\([\w\t\n]+\)').matches('(956sadfssdafjsdoifioj3489asdfoij34890adflk3409\t\n8sajiofdf7)')
+print RegExRepr('a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa').matches('aaaaaaaaaaaaaaaaaaaa')
+print RegExRepr('[a-z]|ab').matches('za')
+
+import timeit
+
+print timeit.timeit('findall("a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaa")', setup='from re import findall', number=100)
+print timeit.timeit('reg.matches("aaaaaaaaaaaaaaaaaaa")',
+                    setup='from __main__ import RegExRepr; reg = RegExRepr("a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaaaaaa")',
+                    number=100)
